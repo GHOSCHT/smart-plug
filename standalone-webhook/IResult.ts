@@ -1,0 +1,3 @@
+interface Result {
+  status: String;
+}
