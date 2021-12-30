@@ -14,9 +14,11 @@ const char *password = WIFI_PW;
 HTTPServer myServer = HTTPServer();
 void handleRoot(HTTPRequest *req, HTTPResponse *res);
 void handleWebHook(HTTPRequest *req, HTTPResponse *res);
+void handleJson(HTTPRequest *req, HTTPResponse *res);
 
 ResourceNode *nodeRoot = new ResourceNode("/", "GET", &handleRoot);
 ResourceNode *nodeWebHook = new ResourceNode("/hook", "POST", &handleWebHook);
+ResourceNode *nodeWebHook = new ResourceNode("/json", "POST", &handleJson);
 
 void setup()
 {
@@ -52,12 +54,43 @@ void handleRoot(HTTPRequest *req, HTTPResponse *res)
   res->println("<head><title>Smart Plug</title></head>");
   res->println("<body>");
   res->println("<h1>Smart Plug</h1>");
-  res->print("<p>send a PUSH request to /hook with the 'status' variable set to 0 or 1</p>");
+  res->print("<p>send a PUSH request to /hook with the urlencoded 'status' variable set to 0 or 1</p>");
   res->println("</body>");
   res->println("</html>");
 }
 
 void handleWebHook(HTTPRequest *req, HTTPResponse *res)
+{
+  int capacity = 50;
+  char *buffer = new char[capacity + 1];
+  memset(buffer, 0, capacity + 1);
+
+  size_t idx = 0;
+  while (!req->requestComplete() && idx < capacity)
+  {
+    idx += req->readChars(buffer + idx, capacity - idx);
+  }
+
+  char delim[] = "status=";
+  char *status = strtok(buffer, delim);
+  while (status != NULL)
+  {
+    if (status[0] == '0')
+    {
+      digitalWrite(25, HIGH);
+      digitalWrite(33, LOW);
+    }
+    else if (status[0] == '1')
+    {
+      digitalWrite(25, LOW);
+      digitalWrite(33, HIGH);
+    }
+    Serial.printf("'%s'\n", status);
+    status = strtok(NULL, delim);
+  }
+}
+
+void handleJson(HTTPRequest *req, HTTPResponse *res)
 {
   const size_t capacity = JSON_OBJECT_SIZE(4) + 180;
   DynamicJsonDocument jsonBuffer(capacity);
